@@ -1,4 +1,4 @@
-run = "bash start-replit.sh"
+run = "cd backend && npm install && cd ../frontend && npm run build && cd ../backend && npm run dev"
 
 [nix]
 channel = "stable-22_11"
@@ -6,7 +6,3 @@ channel = "stable-22_11"
 [[ports]]
 localPort = 3001
 externalPort = 80
-
-[[ports]]
-localPort = 3000
-externalPort = 3000
