@@ -1,0 +1,70 @@
+/**
+ * Styli dla PlayerHand
+ */
+
+.player-hand {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.1) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px;
+  min-width: 200px;
+  transition: all 0.3s ease;
+}
+
+.player-hand.current-player {
+  border-color: #ffd700;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(0, 0, 0, 0.1) 100%);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.hand-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  color: #fff;
+  text-align: center;
+}
+
+.cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 12px;
+  min-height: 140px;
+}
+
+.empty-hand {
+  width: 100%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 40px 20px;
+  font-style: italic;
+}
+
+.hand-info {
+  font-size: 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .player-hand {
+    margin: 8px;
+    padding: 12px;
+    min-width: auto;
+  }
+
+  .hand-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .cards-container {
+    gap: 4px;
+    min-height: 110px;
+  }
+}

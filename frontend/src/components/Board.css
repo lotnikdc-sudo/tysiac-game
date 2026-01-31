@@ -1,0 +1,122 @@
+/**
+ * Styli dla Board
+ */
+
+.board {
+  background: radial-gradient(circle at center, #0d5c6f 0%, #0a3f4f 100%);
+  border: 4px solid #2c5f2c;
+  border-radius: 16px;
+  padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  margin: 12px;
+  position: relative;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.board-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffd700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.trump-info {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+.trump-symbol {
+  font-size: 20px;
+  margin-left: 6px;
+  color: #e74c3c;
+}
+
+.board-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  width: 100%;
+  min-height: 200px;
+}
+
+.played-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-card {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+  animation: cardAppear 0.3s ease-out;
+}
+
+@keyframes cardAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.player-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-board {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .board {
+    padding: 16px;
+    margin: 8px;
+    min-height: 250px;
+  }
+
+  .board-title {
+    font-size: 20px;
+  }
+
+  .board-cards {
+    gap: 12px;
+    min-height: 150px;
+  }
+
+  .trump-info {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}

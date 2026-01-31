@@ -1,0 +1,231 @@
+/**
+ * Styli dla BiddingDialog
+ */
+
+.bidding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.bidding-dialog {
+  background: linear-gradient(135deg, #1a3a3a 0%, #0d5c6f 100%);
+  border: 3px solid #ffd700;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.bidding-dialog h2 {
+  font-size: 24px;
+  color: #ffd700;
+  margin-bottom: 16px;
+  text-align: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.bidding-player {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.bidding-player strong {
+  color: #ffd700;
+}
+
+.bidding-controls {
+  margin-bottom: 24px;
+}
+
+.bid-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.bid-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.bid-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.bid-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.bid-btn {
+  background: linear-gradient(135deg, #0d5c6f 0%, #0a3f4f 100%);
+  border: 2px solid #ffd700;
+  color: #ffd700;
+  font-weight: bold;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.bid-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1a5c7f 0%, #1a4f5f 100%);
+  transform: scale(1.05);
+}
+
+.bid-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bid-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #e74c3c, #f39c12, #2ecc71);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.bid-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffd700;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.bid-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffd700;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.bid-quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.quick-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.quick-btn:hover {
+  background: #ffd700;
+  color: #1a3a3a;
+  border-color: #ffd700;
+}
+
+.bidding-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.bid-confirm-btn,
+.bid-pass-btn {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bid-confirm-btn {
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+  color: white;
+}
+
+.bid-confirm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+}
+
+.bid-pass-btn {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+}
+
+.bid-pass-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+@media (max-width: 768px) {
+  .bidding-dialog {
+    padding: 24px;
+    max-width: 90%;
+  }
+
+  .bidding-dialog h2 {
+    font-size: 20px;
+  }
+
+  .bid-value {
+    font-size: 24px;
+  }
+
+  .bid-quick {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -1,0 +1,155 @@
+/**
+ * Styli dla ScoreBoard
+ */
+
+.scoreboard {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.scoreboard-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.scoreboard-table {
+  width: 100%;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 30px 1fr 60px 70px 60px;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  text-align: center;
+}
+
+.table-body {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 60px 70px 60px;
+  gap: 8px;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.table-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.table-row.current {
+  background: rgba(255, 215, 0, 0.1);
+  border-left: 3px solid #ffd700;
+  padding-left: 5px;
+}
+
+.col-rank {
+  text-align: center;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.col-name {
+  text-align: left;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.current-badge {
+  color: #ffd700;
+  font-size: 14px;
+}
+
+.col-score {
+  text-align: center;
+  font-weight: bold;
+}
+
+.col-score .win {
+  color: #2ecc71;
+}
+
+.col-score .lose {
+  color: #e74c3c;
+}
+
+.col-bid {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.bidder-badge {
+  font-size: 12px;
+}
+
+.col-status {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Scrollbar */
+.table-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.table-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.table-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .scoreboard {
+    margin: 8px;
+    padding: 12px;
+    max-width: 100%;
+  }
+
+  .scoreboard-title {
+    font-size: 16px;
+  }
+
+  .table-header {
+    grid-template-columns: 25px 1fr 50px 55px 50px;
+    font-size: 11px;
+  }
+
+  .table-row {
+    grid-template-columns: 25px 1fr 50px 55px 50px;
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+}
