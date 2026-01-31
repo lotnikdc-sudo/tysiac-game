@@ -1,0 +1,13 @@
+{
+  "name": "tysiac-game-root",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "18.x"
+  },
+  "scripts": {
+    "preinstall": "cd backend && npm install || true && cd ../frontend && npm install || true && cd ..",
+    "build": "cd frontend && npm run build && cd ../backend && npm run build",
+    "start": "node backend/dist/server.js"
+  }
+}
