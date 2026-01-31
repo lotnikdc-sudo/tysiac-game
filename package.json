@@ -8,6 +8,8 @@
   "scripts": {
     "preinstall": "cd backend && npm install || true && cd ../frontend && npm install || true && cd ..",
     "build": "cd frontend && npm run build && cd ../backend && npm run build",
+    "heroku-postbuild": "npm run build",
+    "postinstall": "npm run build",
     "start": "node backend/dist/server.js"
   }
 }
