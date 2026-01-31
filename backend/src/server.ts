@@ -24,6 +24,11 @@ const PORT = process.env.PORT || 3001;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
+// Health check endpoint (must be fast for deployment)
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // API Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
