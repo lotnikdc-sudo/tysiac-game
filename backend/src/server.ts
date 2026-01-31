@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend/build')));
+app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
 // API Routes
 app.get('/api/health', (req, res) => {
@@ -42,7 +42,7 @@ initializeSocketHandlers(io);
 
 // Fallback dla SPA
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+  res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
 });
 
 // Uruchomienie serwera
