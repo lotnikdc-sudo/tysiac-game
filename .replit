@@ -1,4 +1,4 @@
-run = "cd backend && npm install && cd ../frontend && npm install && cd ../frontend && npm run build && cd ../backend && npm run dev"
+run = "cd backend && npm install && npm run build && cd ../frontend && npm install && npm run build && cd ../backend && npm start"
 
 [nix]
 channel = "stable-22_11"
