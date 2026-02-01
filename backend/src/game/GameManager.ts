@@ -37,6 +37,8 @@ export class GameManager {
    * Dodaje gracza do gry
    */
   addPlayer(player: Player): void {
+    // Avoid adding the same player twice
+    if (this.players.findIndex(p => p.id === player.id) !== -1) return;
     if (this.players.length < 4) {
       this.players.push(player);
       if (this.players.length >= 2) {

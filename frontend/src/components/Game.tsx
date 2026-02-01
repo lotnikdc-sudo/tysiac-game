@@ -55,6 +55,7 @@ const Game: React.FC = () => {
   const [roundNumber, setRoundNumber] = useState<number>(1);
   const [disabledCards, setDisabledCards] = useState<string[]>([]);
   const [message, setMessage] = useState<string>('');
+  const [joining, setJoining] = useState<boolean>(false);
 
   // Inicjalizacja Socket.io
   useEffect(() => {
@@ -69,6 +70,9 @@ const Game: React.FC = () => {
       setTrump(data.trump || '');
       setRoundNumber(data.roundNumber);
       setMyId(socket.id || '');
+      // we've received an update from server - stop showing joining state
+      setJoining(false);
+      setMessage('');
 
       if (data.playerView) {
         setPlayerHand(data.playerView.playerHand);
@@ -79,6 +83,8 @@ const Game: React.FC = () => {
       setPlayers(data.players);
       setCurrentPlayerIndex(data.currentPlayerIndex);
       setGameState(data.gameState);
+      setJoining(false);
+      setMessage('');
     });
 
     socket.on(SOCKET_EVENTS.BID_PLACED, (data) => {
@@ -132,6 +138,8 @@ const Game: React.FC = () => {
     }
 
     const socket = socketRef.current;
+    if (joining) return; // prevent double submit
+    setJoining(true);
     socket.emit(SOCKET_EVENTS.JOIN_GAME, {
       playerName,
       gameId: gameId || undefined
@@ -214,8 +222,8 @@ const Game: React.FC = () => {
               onChange={(e) => setGameId(e.target.value)}
               maxLength={36}
             />
-            <button onClick={handleJoinGame} className="btn-primary">
-              🎮 Dołącz do gry
+            <button onClick={handleJoinGame} className="btn-primary" disabled={joining}>
+              {joining ? 'Dołączanie...' : '🎮 Dołącz do gry'}
             </button>
             <button onClick={() => handleAddBot('JanBot')} className="btn-secondary" style={{marginLeft:8}}>
               ➕ Dodaj bota

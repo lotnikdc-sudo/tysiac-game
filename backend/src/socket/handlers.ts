@@ -5,6 +5,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { GameManager, GameState } from '../game/GameManager';
 import { Player } from '../game/Player';
+import { BotPlayer } from '../game/BotPlayer';
 import { SOCKET_EVENTS, JoinGamePayload, BidPayload, PlayCardPayload } from './events';
 
 interface GameSession {
@@ -54,11 +55,97 @@ export function initializeSocketHandlers(io: SocketIOServer): void {
       handleLeaveGame(io, socket);
     });
 
+    // ===== DODAJ BOTA =====
+    socket.on(SOCKET_EVENTS.ADD_BOT, (payload: { gameId?: string; botName?: string }) => {
+      handleAddBot(io, socket, payload);
+    });
+
     // ===== ROZŁĄCZENIE =====
     socket.on('disconnect', () => {
       handleDisconnect(io, socket);
     });
   });
+}
+
+/**
+ * Jeśli obecny gracz jest botem - wykonaj jego ruchy automatycznie.
+ * Funkcja wykonuje kolejne działania botów aż do pierwszego gracza-nie-bota.
+ */
+function processBots(io: SocketIOServer, session: GameSession) {
+  const gm = session.gameManager;
+
+  // krótkie opóźnienie między ruchami
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+  (async () => {
+    while (true) {
+      const current = gm.players[gm.currentPlayerIndex];
+      if (!current) break;
+      // rozpoznaj bota po id starting with 'bot-'
+      if (current.id && current.id.startsWith('bot-')) {
+        // wybierz kartę przez bota
+        const bot = current as BotPlayer;
+        const chosen = bot.chooseCard(gm);
+        if (!chosen) {
+          // jeśli brak karty, zakończ
+          break;
+        }
+        // wykonaj ruch
+        gm.playCard(bot.id, chosen.getId());
+
+        // Wyślij eventy aktualizacji do pokoju
+        io.to(session.gameManager.gameId).emit(SOCKET_EVENTS.CARD_PLAYED, {
+          playerId: bot.id,
+          cardId: chosen.getId(),
+          gameState: gm.getGameState()
+        });
+
+        if (gm.playedCards.length === 0 && gm.gameState === GameState.PLAYING) {
+          io.to(gm.gameId).emit(SOCKET_EVENTS.TRICK_RESOLVED, { gameState: gm.getGameState() });
+        }
+
+        if (gm.gameState === GameState.GAME_END) {
+          const winner = gm.players.reduce((prev, curr) => curr.score > prev.score ? curr : prev);
+          io.to(gm.gameId).emit(SOCKET_EVENTS.GAME_END, {
+            winner: winner.getPublicState(),
+            finalScores: gm.players.map(p => p.getPublicState())
+          });
+          activeSessions.delete(gm.gameId);
+          break;
+        }
+
+        // poczekaj chwilę przed kolejnym botem
+        await delay(500);
+        continue; // sprawdź następnego gracza
+      }
+      break; // obecny gracz nie jest botem
+    }
+  })();
+}
+
+/** Handler: Dodaje bota do gry */
+function handleAddBot(io: SocketIOServer, socket: Socket, payload: { gameId?: string; botName?: string }) {
+  try {
+    const gameId = payload.gameId || playerGames.get(socket.id);
+    if (!gameId) return;
+
+    const session = activeSessions.get(gameId);
+    if (!session) return;
+
+    const bot = new BotPlayer(payload.botName);
+    session.players.set(bot.id, bot);
+    session.gameManager.addPlayer(bot);
+
+    // powiadom graczy
+    io.to(gameId).emit(SOCKET_EVENTS.PLAYERS_UPDATED, {
+      players: session.gameManager.players.map(p => p.getPublicState())
+    });
+
+    // jeśli gra już w toku, spróbuj uruchomić bota gdy przyjdzie kolej
+    processBots(io, session);
+  } catch (err) {
+    console.error('Błąd przy dodawaniu bota:', err);
+  }
 }
 
 /**
@@ -105,6 +192,13 @@ function handleJoinGame(io: SocketIOServer, socket: Socket, payload: JoinGamePay
     socket.emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
       ...gameState,
       playerView: session.gameManager.getPlayerView(socket.id)
+    });
+
+    // Broadcast updated players list to room (ensure frontend updates)
+    io.to(finalGameId).emit(SOCKET_EVENTS.PLAYERS_UPDATED, {
+      players: session.gameManager.players.map(p => p.getPublicState()),
+      currentPlayerIndex: session.gameManager.currentPlayerIndex,
+      gameState: session.gameManager.gameState
     });
 
     // Powiadom wszystkich o zmianach w graczach
