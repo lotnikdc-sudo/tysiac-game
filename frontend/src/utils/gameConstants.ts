@@ -57,4 +57,6 @@ export const SOCKET_EVENTS = {
   ROUND_END: 'roundEnd',
   GAME_END: 'gameEnd',
   ERROR: 'error'
+  ,
+  ADD_BOT: 'addBot'
 };

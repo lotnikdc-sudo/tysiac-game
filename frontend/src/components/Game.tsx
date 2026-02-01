@@ -174,6 +174,22 @@ const Game: React.FC = () => {
     setPlayerHand([]);
   };
 
+  const handleAddBot = (botName?: string) => {
+    const socket = socketRef.current;
+    socket.emit(SOCKET_EVENTS.ADD_BOT, { gameId, botName });
+    setMessage('Dodano bota...');
+  };
+
+  const handleFillWithBots = () => {
+    const socket = socketRef.current;
+    // calculate how many bots to add
+    const needed = Math.max(0, 4 - players.length);
+    for (let i = 0; i < needed; i++) {
+      socket.emit(SOCKET_EVENTS.ADD_BOT, { gameId, botName: `Bot${i + 1}` });
+    }
+    setMessage(`Dodano ${needed} bota(ów)`);
+  };
+
   // Gra jeszcze się nie rozpoczęła
   if (!gameState || gameState === GAME_STATES.WAITING) {
     return (
@@ -200,6 +216,12 @@ const Game: React.FC = () => {
             />
             <button onClick={handleJoinGame} className="btn-primary">
               🎮 Dołącz do gry
+            </button>
+            <button onClick={() => handleAddBot('JanBot')} className="btn-secondary" style={{marginLeft:8}}>
+              ➕ Dodaj bota
+            </button>
+            <button onClick={handleFillWithBots} className="btn-secondary" style={{marginLeft:8}}>
+              🔥 Dopełnij do 4 graczy
             </button>
           </div>
 
@@ -245,6 +267,12 @@ const Game: React.FC = () => {
         <div className="game-controls">
           <button onClick={handleLeaveGame} className="btn-leave">
             Opuść grę
+          </button>
+          <button onClick={() => handleAddBot('JanBot')} className="btn-secondary" style={{marginLeft:8}}>
+            ➕ Dodaj bota
+          </button>
+          <button onClick={handleFillWithBots} className="btn-secondary" style={{marginLeft:8}}>
+            🔥 Dopełnij do 4 graczy
           </button>
         </div>
       </div>
