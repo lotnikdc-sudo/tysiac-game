@@ -10,7 +10,7 @@ import { GameRules } from './GameRules';
 export enum GameState {
   WAITING_FOR_PLAYERS = 'waiting',
   BIDDING = 'bidding',
-  MELDING = 'melding',
+  CARD_SELECTION = 'cardSelection',
   PLAYING = 'playing',
   ROUND_END = 'roundEnd',
   GAME_END = 'gameEnd'
@@ -21,13 +21,17 @@ export class GameManager {
   players: Player[] = [];
   currentPlayerIndex: number = 0;
   currentBidderIndex: number = 0;
+  bidderId?: string; // Zwycięzca aukcji
+  muckPlayerId?: string; // Gracz na mucku - nie bierze udziału w grze
   gameState: GameState = GameState.WAITING_FOR_PLAYERS;
   trump?: Suit;
-  playedCards: Card[] = [];           // Karty zagrane w obecnej lewie
-  tableCards: Map<string, Card> = new Map(); // playerId -> Card
+  playedCards: Card[] = [];
+  tableCards: Map<string, Card> = new Map();
   roundNumber: number = 1;
   maxRounds: number = 9;
   trumpCard?: Card;
+  muckCards: Card[] = []; // 2 karty oddane do mucka
+  talonCards: Card[] = []; // 2 dodatkowe karty z talonu (dla zwycięzcy aukcji)
 
   constructor() {
     this.gameId = uuidv4();
@@ -41,9 +45,6 @@ export class GameManager {
     if (this.players.findIndex(p => p.id === player.id) !== -1) return;
     if (this.players.length < 4) {
       this.players.push(player);
-      if (this.players.length >= 2) {
-        this.gameState = GameState.BIDDING;
-      }
     }
   }
 
@@ -55,94 +56,133 @@ export class GameManager {
   }
 
   /**
-   * Rozpoczyna nową rundę
+   * Rozpoczyna nową rundę:
+   * 1. Reset state graczy
+   * 2. Rozdaj 3 karty każdemu + zachowaj 2 na talon
+   * 3. Ustaw następnego licytanta
+   * 4. Wyznacz gracza na mucku (prawo od licytanta)
+   * 5. Przejdź do licytacji
    */
   startNewRound(): void {
-    // Reset stanu graczy do nowej rundy
     this.players.forEach(p => p.resetForNewRound());
 
-    // Rozdaj karty
-    this.trumpCard = GameRules.dealCards(this.players);
-    this.gameState = GameState.BIDDING;
-
-    // Przełącz licytanta
+    // Rozdaj 3 karty każdemu, zachowaj 2 karty (talon + atut)
+    this.talonCards = GameRules.dealCards(this.players);
+    this.trumpCard = this.talonCards[0]; // Pierwsza karta talonu to atut
+    
+    // Następny licytant
     this.currentBidderIndex = (this.currentBidderIndex + 1) % this.players.length;
     this.currentPlayerIndex = this.currentBidderIndex;
-
+    this.bidderId = undefined;
+    
+    // Gracz na mucku (prawo od licytanta) - nie bierze udziału w lewach
+    this.muckPlayerId = this.players[(this.currentBidderIndex + 1) % this.players.length].id;
+    this.muckCards = [];
+    
+    this.gameState = GameState.BIDDING;
     this.roundNumber++;
   }
 
   /**
    * Gracz składa licytację
+   * Awans do następnego gracza lub zakończenie aukcji
    */
   placeBid(playerId: string, bidAmount: number): boolean {
     const player = this.players.find(p => p.id === playerId);
-    if (!player) return false;
+    if (!player || this.gameState !== GameState.BIDDING) return false;
 
     player.bid = bidAmount;
-
-    // Sprawdź czy wszyscy złożyli licytacje
-    if (this.players.every(p => p.bid > 0)) {
-      this.gameState = GameState.MELDING;
-      
-      // Licytant to gracz z najwyższą licytacją
-      const bidder = this.players.reduce((prev, curr) =>
-        curr.bid > prev.bid ? curr : prev
-      );
-      bidder.isBidder = true;
-      this.currentBidderIndex = this.players.indexOf(bidder);
-      this.trump = this.trumpCard?.suit;
-
+    
+    // Sprawdź czy wszyscy oddali licytację
+    const allSubmitted = this.players.every(p => p.bid >= 0);
+    
+    if (!allSubmitted) {
+      // Jeszcze są gracze, którzy nie licytowali - przejdź do następnego
+      this.currentPlayerIndex = GameRules.getNextPlayer(this.players, this.currentPlayerIndex);
       return true;
     }
 
-    return false;
-  }
+    // Wszyscy złożyli licytacje - wybierz zwycięzcę
+    const bidder = this.players.reduce((prev, curr) =>
+      curr.bid > prev.bid ? curr : prev
+    );
 
-  /**
-   * Gracz potwierdza meldunki
-   */
-  confirmMelds(playerId: string, selectedCards: string[]): boolean {
-    const player = this.players.find(p => p.id === playerId);
-    if (!player) return false;
-
-    // Konwertuj ID kart na obiekty Card
-    const cards = selectedCards
-      .map(id => player.hand.find(c => c.getId() === id))
-      .filter((c): c is Card => c !== undefined);
-
-    if (cards.length > 0) {
-      player.melds = GameRules.findMelds(player.hand);
-    }
-
-    // Sprawdź czy wszyscy potwierdzili meldunki
-    const allConfirmed = this.players.every(p => p.melds.length >= 0);
-
-    if (allConfirmed) {
-      this.gameState = GameState.PLAYING;
+    if (bidder.bid > 0) {
+      // Ktoś wygrał aukcję
+      bidder.isBidder = true;
+      this.bidderId = bidder.id;
+      this.currentBidderIndex = this.players.indexOf(bidder);
+      this.trump = this.trumpCard?.suit;
+      
+      // Daj zwycięzcy aukcji 2 karty z talonu
+      bidder.hand.push(...this.talonCards);
+      bidder.sortHand();
+      
+      // Przejdź do fazy wyboru kart do oddania na muck
+      this.gameState = GameState.CARD_SELECTION;
       this.currentPlayerIndex = this.currentBidderIndex;
-      this.playedCards = [];
-      this.tableCards.clear();
+    } else {
+      // Wszyscy spasowali - rozdanie od nowa
+      this.startNewRound();
     }
 
     return true;
   }
 
   /**
+   * Licytant oddaje 2 karty do mucka
+   * Po tej akcji gra przechodzi do PLAYING
+   */
+  discardToMuck(playerId: string, cardIds: string[]): boolean {
+    if (this.gameState !== GameState.CARD_SELECTION || cardIds.length !== 2) return false;
+    if (this.bidderId !== playerId) return false;
+
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Usuń wybrane karty i dodaj do mucka
+    const cardsToDiscard: Card[] = [];
+    for (const cardId of cardIds) {
+      const card = player.hand.find(c => c.getId() === cardId);
+      if (!card) return false;
+      cardsToDiscard.push(card);
+      player.removeCard(card);
+    }
+    
+    this.muckCards = cardsToDiscard;
+    
+    // Przejdź do gry - licytant zaczyna pierwszą lewę
+    this.gameState = GameState.PLAYING;
+    this.currentPlayerIndex = this.currentBidderIndex;
+    this.playedCards = [];
+    this.tableCards.clear();
+    
+    return true;
+  }
+
+  /**
    * Gracz zagrywa kartę
+   * Waliduje legalność zagrania (follow suit, trump rules)
+   * Pomija gracza na mucku (nie bierze udziału w grze)
    */
   playCard(playerId: string, cardId: string): boolean {
     const player = this.players.find(p => p.id === playerId);
     if (!player || this.gameState !== GameState.PLAYING) return false;
 
-    // Sprawdź czy to kolej gracza
-    if (this.players[this.currentPlayerIndex].id !== playerId) return false;
+    // Pomiń gracza na mucku - on nie gra
+    let currentPlayer = this.players[this.currentPlayerIndex];
+    while (currentPlayer.id === this.muckPlayerId) {
+      this.currentPlayerIndex = GameRules.getNextPlayer(this.players, this.currentPlayerIndex);
+      currentPlayer = this.players[this.currentPlayerIndex];
+    }
+    
+    if (currentPlayer.id !== playerId) return false;
 
     // Znajdź kartę w ręce gracza
     const card = player.hand.find(c => c.getId() === cardId);
     if (!card) return false;
 
-    // Sprawdź legalność ruchu
+    // Sprawdź legalność ruchu (follow suit, use trump)
     if (!GameRules.isCardPlayValid(
       card,
       this.playedCards,
@@ -157,14 +197,17 @@ export class GameManager {
     this.playedCards.push(card);
     this.tableCards.set(playerId, card);
 
-    // Przejdź do następnego gracza
-    this.currentPlayerIndex = GameRules.getNextPlayer(
-      this.players,
-      this.currentPlayerIndex
-    );
+    // Przejdź do następnego gracza (pomiń muck)
+    do {
+      this.currentPlayerIndex = GameRules.getNextPlayer(
+        this.players,
+        this.currentPlayerIndex
+      );
+    } while (this.players[this.currentPlayerIndex].id === this.muckPlayerId);
 
-    // Sprawdź czy wszyscy zagrali
-    if (this.playedCards.length === this.players.length) {
+    // Sprawdź czy wszyscy (poza muckiem) zagrali
+    const activePlayers = this.players.filter(p => p.id !== this.muckPlayerId);
+    if (this.playedCards.length === activePlayers.length) {
       this.resolveTrick();
     }
 
@@ -172,16 +215,21 @@ export class GameManager {
   }
 
   /**
-   * Rozstrzyga lewę
+   * Rozstrzyga lewę:
+   * 1. Znajdź zwycięzcę (najwyższa karta koloru lub atut)
+   * 2. Przyznaj lewę zwycięzcy
+   * 3. Przejdź do następnej lewy lub koniec rundy
    */
   private resolveTrick(): void {
-    const winnerIndex = GameRules.determineWinner(
+    // Oblicz zwycięzcę pomijając gracza na mucku
+    const activePlayers = this.players.filter(p => p.id !== this.muckPlayerId);
+    const winnerIndexInActive = GameRules.determineWinner(
       this.playedCards,
-      this.players,
+      activePlayers,
       this.trump!
     );
-
-    const winner = this.players[winnerIndex];
+    
+    const winner = activePlayers[winnerIndexInActive];
     winner.addTrick(this.playedCards);
 
     // Sprawdzenie czy to koniec rundy
@@ -189,18 +237,27 @@ export class GameManager {
       this.endRound();
     } else {
       // Następna lewa - zwycięzca zaczyna
-      this.currentPlayerIndex = winnerIndex;
+      this.currentPlayerIndex = this.players.indexOf(winner);
       this.playedCards = [];
       this.tableCards.clear();
     }
   }
 
   /**
-   * Kończy rundę i liczy punkty
+   * Kończy rundę i liczy punkty:
+   * - Gracz na mucku dostaje 0 punktów
+   * - Reszta graczy: suma punktów z kart w lewach + meldunki
+   * - Sprawdź warunki zwycięstwa/przegranej
    */
   private endRound(): void {
     this.players.forEach(player => {
-      player.calculateRoundScore();
+      if (player.id === this.muckPlayerId) {
+        // Gracz na mucku nie bierze punktów
+        player.roundScore = 0;
+      } else {
+        // Reszta graczy liczy punkty
+        player.calculateRoundScore();
+      }
       player.score += player.roundScore;
     });
 
@@ -236,7 +293,8 @@ export class GameManager {
       state: this.gameState,
       roundNumber: this.roundNumber,
       currentPlayerIndex: this.currentPlayerIndex,
-      currentBidderId: this.players[this.currentBidderIndex]?.id,
+      currentBidderId: this.bidderId || this.players[this.currentBidderIndex]?.id,
+      muckPlayerId: this.muckPlayerId,
       trump: this.trump,
       players: this.players.map(p => p.getPublicState()),
       playedCards: this.playedCards.map(c => ({
@@ -251,20 +309,24 @@ export class GameManager {
 
   /**
    * Zwraca widok gry dla konkretnego gracza
+   * Jeśli gracz jest na mucku i gra trwa - zwraca puste karty (obserwator)
    */
   getPlayerView(playerId: string) {
     const player = this.players.find(p => p.id === playerId);
     if (!player) return null;
 
+    const isMuckPlayer = player.id === this.muckPlayerId && this.gameState === GameState.PLAYING;
+
     return {
       gameState: this.getGameState(),
-      playerHand: player.hand.map(c => ({
+      playerHand: isMuckPlayer ? [] : player.hand.map(c => ({
         id: c.getId(),
         suit: c.suit,
         rank: c.rank
       })),
       playerMelds: player.melds,
-      playerTricksCount: player.tricks.length
+      playerTricksCount: isMuckPlayer ? 0 : player.tricks.length,
+      isMuckPlayer
     };
   }
 }

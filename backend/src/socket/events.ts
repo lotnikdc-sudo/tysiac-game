@@ -18,9 +18,14 @@ export const SOCKET_EVENTS = {
   BID_PLACED: 'bidPlaced',
   BIDDING_COMPLETE: 'biddingComplete',
   
-  // Meldunki
-  CONFIRM_MELDS: 'confirmMelds',
-  MELDS_CONFIRMED: 'meldsConfirmed',
+  // Wybór kart do mucka (faza po licytacji)
+  DISCARD_TO_MUCK: 'discardToMuck',
+  DISCARD_TO_MUCK_COMPLETE: 'discardToMuckComplete',
+  
+  // Muczek (deprecated)
+  RETURN_MUCEK_CARDS: 'returnMucekCards',
+  MUCKING_COMPLETE: 'muckingComplete',
+  SHOW_MUCEK: 'showMucek',
   
   // Gra
   PLAY_CARD: 'playCard',
@@ -28,6 +33,9 @@ export const SOCKET_EVENTS = {
   TRICK_RESOLVED: 'trickResolved',
   ROUND_END: 'roundEnd',
   GAME_END: 'gameEnd',
+  
+  // Bots
+  ADD_BOT: 'addBot',
   
   // Stan gry
   GAME_STATE_UPDATE: 'gameStateUpdate',

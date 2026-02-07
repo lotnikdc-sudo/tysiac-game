@@ -386,3 +386,144 @@
     max-height: 150px;
   }
 }
+.mucek-dialog {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(13, 92, 111, 0.5) 100%);
+  border: 3px solid #ffd700;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 600px;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.4);
+}
+
+.mucek-dialog h3 {
+  color: #ffd700;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.mucek-cards {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.mucek-card {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #2d5016 0%, #1a3a1a 100%);
+  border: 2px solid #90ee90;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  color: white;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.mucek-card:hover {
+  transform: scale(1.05);
+  border-color: #ffd700;
+  background: linear-gradient(135deg, #3d7024 0%, #2a4a2a 100%);
+}
+
+.mucek-card.selected {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: black;
+  border-color: #ff6b6b;
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+
+.mucek-info {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+/* Card Selection Dialog (for discard to muck) */
+.card-selection-dialog {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(13, 92, 111, 0.6) 100%);
+  border: 3px solid #ff6b6b;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 700px;
+  box-shadow: 0 0 40px rgba(255, 107, 107, 0.4);
+}
+
+.card-selection-dialog h3 {
+  color: #ff6b6b;
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+
+.card-selection-dialog p {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.selection-cards {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+}
+
+.selection-card {
+  padding: 15px 25px;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  border: 2px solid #5a7fdb;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 18px;
+  color: white;
+  transition: all 0.3s ease;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 70px;
+}
+
+.selection-card:hover {
+  transform: scale(1.08);
+  border-color: #ffd700;
+  background: linear-gradient(135deg, #2e4c82 0%, #3a62a8 100%);
+}
+
+.selection-card.selected {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+  color: white;
+  border-color: #ff1744;
+  transform: scale(1.15);
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.7);
+}
+
+.selection-card .card-rank {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.selection-card .card-suit {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.selection-info {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 20px;
+  font-weight: bold;
+}

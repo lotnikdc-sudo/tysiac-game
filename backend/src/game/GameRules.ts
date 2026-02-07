@@ -37,24 +37,31 @@ export class GameRules {
   }
 
   /**
-   * Rozdaje karty: każdemu graczowi 3+3+3 karty
+   * Rozdaje karty: każdemu graczowi 3 karty
+   * Zwraca 2 karty talonu (będą w ręku licytanta po wygraniu aukcji)
+   * Pierwsza karta talonu to karta atutowa
    */
-  static dealCards(players: Player[]): Card {
+  static dealCards(players: Player[]): Card[] {
     const deck = this.createDeck();
     let deckIndex = 0;
 
-    // Rozdaj po 3 karty każdemu graczowi (3 rundy)
-    for (let round = 0; round < 3; round++) {
+    // Rozdaj 3 karty każdemu graczowi
+    for (let i = 0; i < 3; i++) {
       for (const player of players) {
-        for (let i = 0; i < 3; i++) {
-          player.addCard(deck[deckIndex++]);
-        }
+        if (deckIndex >= deck.length) break;
+        player.addCard(deck[deckIndex++]);
       }
     }
 
-    // Karta atutowa - następna po rozdaniu
-    const trump = deck[deckIndex];
-    return trump;
+    // Posortuj ręce graczy
+    players.forEach(p => p.sortHand());
+
+    // Talon: 2 następne karty (zostają aż do wyboru przez licytanta)
+    const talon: Card[] = [];
+    if (deckIndex < deck.length) talon.push(deck[deckIndex++]);
+    if (deckIndex < deck.length) talon.push(deck[deckIndex++]);
+    
+    return talon;
   }
 
   /**

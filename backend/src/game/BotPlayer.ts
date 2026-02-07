@@ -32,6 +32,16 @@ export class BotPlayer extends Player {
   }
 
   /**
+   * Wybiera 2 karty do oddania do mucka (dla bota licytanta)
+   * Strategia: oddaj najgłupsze karty (bez punktów, najniżej oceniane)
+   */
+  selectCardsToDiscard(gameManager: GameManager): Card[] {
+    // Posortuj karty po wartości punktowej - oddaj najpierw najgorszsze
+    const sorted = [...this.hand].sort((a, b) => a.getPointValue() - b.getPointValue());
+    return sorted.slice(0, 2);
+  }
+
+  /**
    * Wybiera kartę do zagrania na podstawie prostego kryterium:
    * - wybierz pierwszą legalną kartę o największej wartości punktowej
    */
@@ -46,5 +56,4 @@ export class BotPlayer extends Player {
     }
     // jeśli nic nielegalnego, zwróć pierwszą kartę
     return this.hand.length > 0 ? this.hand[0] : null;
-  }
-}
+  }}

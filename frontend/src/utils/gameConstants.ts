@@ -37,6 +37,8 @@ export const RANK_NAMES = {
 export const GAME_STATES = {
   WAITING: 'waiting',
   BIDDING: 'bidding',
+  MUCKING: 'mucking',
+  CARD_SELECTION: 'cardSelection',
   MELDING: 'melding',
   PLAYING: 'playing',
   ROUND_END: 'roundEnd',
@@ -48,15 +50,18 @@ export const SOCKET_EVENTS = {
   LEAVE_GAME: 'leaveGame',
   GAME_STATE_UPDATE: 'gameStateUpdate',
   PLAYERS_UPDATED: 'playersUpdated',
+  GAME_START: 'gameStart',
   PLACE_BID: 'placeBid',
   BID_PLACED: 'bidPlaced',
   BIDDING_COMPLETE: 'biddingComplete',
+  DISCARD_TO_MUCK: 'discardToMuck',
+  DISCARD_TO_MUCK_COMPLETE: 'discardToMuckComplete',
+  RETURN_MUCEK_CARDS: 'returnMucekCards',
   PLAY_CARD: 'playCard',
   CARD_PLAYED: 'cardPlayed',
   TRICK_RESOLVED: 'trickResolved',
   ROUND_END: 'roundEnd',
   GAME_END: 'gameEnd',
-  ERROR: 'error'
-  ,
+  ERROR: 'error',
   ADD_BOT: 'addBot'
 };

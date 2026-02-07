@@ -45,6 +45,16 @@ export function initializeSocketHandlers(io: SocketIOServer): void {
       handlePlaceBid(io, payload);
     });
 
+    // ===== WYBÓR KART DO MUCKA (po aukcji) =====
+    socket.on(SOCKET_EVENTS.DISCARD_TO_MUCK, (payload: { gameId: string; cardIds: string[] }) => {
+      handleReturnMucekCards(io, socket, payload);
+    });
+
+    // ===== LEGACY: MUCZEK (deprecated) =====
+    socket.on(SOCKET_EVENTS.RETURN_MUCEK_CARDS, (payload: { gameId: string; cardIds: string[] }) => {
+      handleReturnMucekCards(io, socket, payload);
+    });
+
     // ===== ZAGRANIE KARTY =====
     socket.on(SOCKET_EVENTS.PLAY_CARD, (payload: PlayCardPayload) => {
       handlePlayCard(io, payload);
@@ -60,6 +70,10 @@ export function initializeSocketHandlers(io: SocketIOServer): void {
       handleAddBot(io, socket, payload);
     });
 
+    // ===== ROZPOCZNIJ GRĘ =====
+    socket.on(SOCKET_EVENTS.GAME_START, (payload?: { gameId?: string }) => {
+      handleStartGame(io, socket, payload);
+    });
     // ===== ROZŁĄCZENIE =====
     socket.on('disconnect', () => {
       handleDisconnect(io, socket);
@@ -67,10 +81,7 @@ export function initializeSocketHandlers(io: SocketIOServer): void {
   });
 }
 
-/**
- * Jeśli obecny gracz jest botem - wykonaj jego ruchy automatycznie.
- * Funkcja wykonuje kolejne działania botów aż do pierwszego gracza-nie-bota.
- */
+
 function processBots(io: SocketIOServer, session: GameSession) {
   const gm = session.gameManager;
 
@@ -81,6 +92,67 @@ function processBots(io: SocketIOServer, session: GameSession) {
     while (true) {
       const current = gm.players[gm.currentPlayerIndex];
       if (!current) break;
+      console.log(`[processBots] state=${gm.gameState} currentIndex=${gm.currentPlayerIndex} currentId=${current?.id}`);
+      
+      // CARD_SELECTION phase: licytant (bot) musi oddać 2 karty do mucka
+      if (gm.gameState === GameState.CARD_SELECTION) {
+        const bidder = gm.players.find(p => p.id === gm.bidderId);
+        if (bidder && bidder.id.startsWith('bot-')) {
+          console.log(`[processBots] CARD_SELECTION - bot bidder ${bidder.id} discarding to muck`);
+          const bot = bidder as BotPlayer;
+          
+          // Bot musi wybrać 2 karty do oddania
+          const cardsToDiscard = bot.selectCardsToDiscard(gm);
+          if (cardsToDiscard && cardsToDiscard.length === 2) {
+            const discardIds = cardsToDiscard.map(c => c.getId());
+            if (gm.discardToMuck(bot.id, discardIds)) {
+              io.to(gm.gameId).emit('discardToMuckComplete', {
+                gameState: gm.gameState,
+                bidderId: gm.bidderId,
+                muckPlayerId: gm.muckPlayerId,
+                players: gm.players.map(p => p.getPublicState())
+              });
+              console.log(`[processBots] Bot ${bot.id} discarded cards, moving to PLAYING`);
+            }
+          }
+          await delay(400);
+          continue;
+        }
+        break; // current is human waiting for card selection
+      }
+      
+      // If we're in bidding phase, allow bots to place bids automatically
+      if (gm.gameState === GameState.BIDDING) {
+        if (current.id && current.id.startsWith('bot-')) {
+          console.log(`[processBots] bidding loop - bot at index ${gm.currentPlayerIndex}`);
+          const bot = current as BotPlayer;
+          const bid = bot.decideBid();
+          console.log(`[processBots] bot ${bot.id} decided bid=${bid}`);
+          // place bid
+          session.gameManager.placeBid(bot.id, bid);
+          // emit bid placed
+          io.to(session.gameManager.gameId).emit(SOCKET_EVENTS.BID_PLACED, {
+            playerId: bot.id,
+            bidAmount: bid,
+            gameState: session.gameManager.gameState,
+            players: session.gameManager.players.map(p => p.getPublicState())
+          });
+
+          // if bidding finished and game moved to CARD_SELECTION, notify clients
+          if (session.gameManager.gameState === GameState.CARD_SELECTION) {
+            io.to(session.gameManager.gameId).emit('selectCardsTiDiscard', {
+              playerId: session.gameManager.bidderId,
+              gameState: session.gameManager.gameState,
+              players: session.gameManager.players.map(p => p.getPublicState())
+            });
+          }
+
+          // wait then continue loop (next player may be bot)
+          await delay(400);
+          continue;
+        }
+        break; // current is human, stop automated bidding
+      }
       // rozpoznaj bota po id starting with 'bot-'
       if (current.id && current.id.startsWith('bot-')) {
         // wybierz kartę przez bota
@@ -138,13 +210,110 @@ function handleAddBot(io: SocketIOServer, socket: Socket, payload: { gameId?: st
 
     // powiadom graczy
     io.to(gameId).emit(SOCKET_EVENTS.PLAYERS_UPDATED, {
-      players: session.gameManager.players.map(p => p.getPublicState())
+      players: session.gameManager.players.map(p => p.getPublicState()),
+      currentPlayerIndex: session.gameManager.currentPlayerIndex,
+      gameState: session.gameManager.gameState
     });
 
     // jeśli gra już w toku, spróbuj uruchomić bota gdy przyjdzie kolej
     processBots(io, session);
   } catch (err) {
     console.error('Błąd przy dodawaniu bota:', err);
+  }
+}
+
+/** Handler: Rozpocznij grę (rozdanie, meldunki, licytacja) */
+function handleStartGame(io: SocketIOServer, socket: Socket, payload?: { gameId?: string }) {
+  try {
+    const gameId = payload?.gameId || playerGames.get(socket.id);
+    if (!gameId) return;
+
+    const session = activeSessions.get(gameId);
+    if (!session) return;
+
+    // Rozpocznij nową rundę (rozdaj karty, ustaw licytację)
+    session.gameManager.startNewRound();
+
+    // Ustaw stan na PLAYING aby pokazać karty graczom
+    // Licytacja zacznie się po 15 sekundach
+    session.gameManager.gameState = GameState.PLAYING;
+
+    // Wyślij zaktualizowany stan gry do każdego połączonego klienta z widokiem gracza
+    const gameState = session.gameManager.getGameState();
+
+    // DEBUG: log liczby graczy i rozmiarów rąk po rozdaniu
+    try {
+      console.log(`[GAME_START] gameId=${gameId} managerPlayers=${session.gameManager.players.length}`);
+      session.gameManager.players.forEach((p, idx) => {
+        console.log(`[GAME_START] player[${idx}] id=${p.id} name=${p.name} hand=${p.hand.length}`);
+      });
+      console.log(`[GAME_START] trumpCard=${session.gameManager.trumpCard ? session.gameManager.trumpCard.toString() : 'none'}`);
+    } catch (e) {
+      console.error('Error logging game start debug info', e);
+    }
+
+    for (const [sockId, player] of session.players.entries()) {
+      if (!sockId.startsWith('bot-')) {
+        const targetSocket = io.sockets.sockets.get(sockId as string);
+        if (targetSocket) {
+          targetSocket.emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
+            ...gameState,
+            playerView: session.gameManager.getPlayerView(player.id)
+          });
+        }
+      }
+    }
+
+    // Powiadom wszystkich o aktualnej liście graczy
+    io.to(gameId).emit(SOCKET_EVENTS.PLAYERS_UPDATED, {
+      players: session.gameManager.players.map(p => p.getPublicState()),
+      currentPlayerIndex: session.gameManager.currentPlayerIndex,
+      gameState: session.gameManager.gameState
+    });
+
+    // Poczekaj 15 sekund, potem rozpocznij licytację
+    setTimeout(() => {
+      try {
+        // Przejdź do CARD_SELECTION - licytant musi oddać 2 karty do mucka
+        session.gameManager.gameState = GameState.CARD_SELECTION;
+
+        io.to(gameId).emit(SOCKET_EVENTS.PLAYERS_UPDATED, {
+          players: session.gameManager.players.map(p => p.getPublicState()),
+          currentPlayerIndex: session.gameManager.currentPlayerIndex,
+          gameState: session.gameManager.gameState,
+          bidderId: session.gameManager.bidderId,
+          muckPlayerId: session.gameManager.muckPlayerId
+        });
+
+        // Powiadom licytanta, aby wybrał 2 karty do oddania
+        const bidder = session.gameManager.players.find(p => p.id === session.gameManager.bidderId);
+        if (bidder) {
+          io.to(gameId).emit('selectCardsTiDiscard', {
+            playerId: bidder.id,
+            gameState: session.gameManager.gameState,
+            players: session.gameManager.players.map(p => p.getPublicState())
+          });
+        }
+
+        processBots(io, session);
+      } catch (e) {
+        console.error('Error transitioning to CARD_SELECTION', e);
+      }
+    }, 15000);
+
+    // Wyślij do wszystkich pierwszego licytanta
+    const bidder = session.gameManager.players[session.gameManager.currentBidderIndex];
+    if (bidder) {
+      io.to(gameId).emit(SOCKET_EVENTS.BID_PLACED, {
+        playerId: bidder.id,
+        players: session.gameManager.players.map(p => p.getPublicState()),
+        gameState: session.gameManager.gameState
+      });
+    }
+
+    processBots(io, session);
+  } catch (err) {
+    console.error('Błąd przy rozpoczynaniu gry:', err);
   }
 }
 
@@ -201,13 +370,6 @@ function handleJoinGame(io: SocketIOServer, socket: Socket, payload: JoinGamePay
       gameState: session.gameManager.gameState
     });
 
-    // Powiadom wszystkich o zmianach w graczach
-    io.to(finalGameId).emit(SOCKET_EVENTS.PLAYERS_UPDATED, {
-      players: session.gameManager.players.map(p => p.getPublicState()),
-      currentPlayerIndex: session.gameManager.currentPlayerIndex,
-      gameState: session.gameManager.gameState
-    });
-
     // Jeśli jest wystarczająco graczy, rozpocznij grę
     if (session.gameManager.players.length >= 2) {
       console.log(`Gra ${finalGameId} może się rozpocząć (${session.gameManager.players.length} graczy)`);
@@ -238,7 +400,8 @@ function handlePlaceBid(io: SocketIOServer, payload: BidPayload): void {
       io.to(gameId).emit(SOCKET_EVENTS.BID_PLACED, {
         playerId,
         bidAmount,
-        gameState: session.gameManager.gameState
+        gameState: session.gameManager.gameState,
+        players: session.gameManager.players.map(p => p.getPublicState())
       });
 
       if (session.gameManager.gameState === GameState.PLAYING) {
@@ -247,9 +410,40 @@ function handlePlaceBid(io: SocketIOServer, payload: BidPayload): void {
           trump: session.gameManager.trump
         });
       }
+      // Po złożeniu licytacji, spróbuj uruchomić boty (jeśli następny jest bot)
+      processBots(io, session);
     }
   } catch (error) {
     console.error('Błąd przy składaniu licytacji:', error);
+  }
+}
+
+function handleReturnMucekCards(io: SocketIOServer, socket: Socket, payload: { gameId: string; cardIds: string[] }): void {
+  try {
+    const { gameId, cardIds } = payload;
+    const session = activeSessions.get(gameId);
+    if (!session) return;
+
+    const gameManager = session.gameManager;
+    
+    // Licytant oddaje 2 karty do mucka
+    if (!gameManager.discardToMuck(gameManager.bidderId!, cardIds)) {
+      io.to(socket.id).emit('error', { message: 'Invalid card discard' });
+      return;
+    }
+
+    // Przejdź do gry
+    io.to(gameId).emit('discardToMuckComplete', {
+      gameState: gameManager.gameState,
+      bidderId: gameManager.bidderId,
+      muckPlayerId: gameManager.muckPlayerId,
+      players: gameManager.players.map(p => p.getPublicState())
+    });
+
+    // Rozpocznij grę
+    processBots(io, session);
+  } catch (err) {
+    console.error('Błąd przy oddawaniu kart muczka:', err);
   }
 }
 

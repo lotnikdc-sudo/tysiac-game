@@ -56,6 +56,13 @@ const Game: React.FC = () => {
   const [disabledCards, setDisabledCards] = useState<string[]>([]);
   const [message, setMessage] = useState<string>('');
   const [joining, setJoining] = useState<boolean>(false);
+  const [mucekCards, setMucekCards] = useState<CardObj[]>([]);
+  const [showMucekSelection, setShowMucekSelection] = useState<boolean>(false);
+  const [selectedMucekCards, setSelectedMucekCards] = useState<string[]>([]);
+  const [muckPlayerId, setMuckPlayerId] = useState<string>('');
+  const [bidderId, setBidderId] = useState<string>('');
+  const [showCardSelection, setShowCardSelection] = useState<boolean>(false);
+  const [selectedCardsTiDiscard, setSelectedCardsTiDiscard] = useState<string[]>([]);
 
   // Inicjalizacja Socket.io
   useEffect(() => {
@@ -65,7 +72,7 @@ const Game: React.FC = () => {
       console.log('Game state update:', data);
       setGameId(data.gameId);
       setGameState(data.state);
-      setPlayers(data.players);
+      setPlayers(data.players || []);
       setCurrentPlayerIndex(data.currentPlayerIndex);
       setTrump(data.trump || '');
       setRoundNumber(data.roundNumber);
@@ -80,7 +87,7 @@ const Game: React.FC = () => {
     });
 
     socket.on(SOCKET_EVENTS.PLAYERS_UPDATED, (data) => {
-      setPlayers(data.players);
+      setPlayers(data.players || []);
       setCurrentPlayerIndex(data.currentPlayerIndex);
       setGameState(data.gameState);
       setJoining(false);
@@ -88,10 +95,43 @@ const Game: React.FC = () => {
     });
 
     socket.on(SOCKET_EVENTS.BID_PLACED, (data) => {
-      setPlayers(data.players);
+      setPlayers(data.players || []);
+      setBidderId(data.playerId || '');
+      setMuckPlayerId(data.muckPlayerId || '');
+      // Show bidding dialog only if it's for this client
       if (data.gameState === GAME_STATES.BIDDING) {
-        setShowBiddingDialog(true);
+        if (data.playerId === (socketRef.current?.id)) {
+          setShowBiddingDialog(true);
+        } else {
+          setShowBiddingDialog(false);
+        }
       }
+    });
+
+    socket.on('selectCardsTiDiscard', (data) => {
+      // Only show dialog if this client is the bidder
+      if (data.playerId === socketRef.current?.id) {
+        setShowCardSelection(true);
+        setMessage('Licytacja zakończona! Wybierz 2 karty do oddania do mucka.');
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.DISCARD_TO_MUCK_COMPLETE, (data) => {
+      setShowCardSelection(false);
+      setMuckPlayerId(data.muckPlayerId || '');
+      setBidderId(data.bidderId || '');
+      setGameState(GAME_STATES.PLAYING);
+      setMessage('Karty oddane! Zaczyna się gra.');
+      setSelectedCardsTiDiscard([]);
+    });
+
+    socket.on('discardToMuckComplete', (data) => {
+      setShowCardSelection(false);
+      setMuckPlayerId(data.muckPlayerId || '');
+      setBidderId(data.bidderId || '');
+      setGameState(data.gameState);
+      setMessage('Karty oddane! Zaczyna się gra.');
+      setSelectedCardsTiDiscard([]);
     });
 
     socket.on(SOCKET_EVENTS.BIDDING_COMPLETE, (data) => {
@@ -124,6 +164,23 @@ const Game: React.FC = () => {
 
     socket.on(SOCKET_EVENTS.ERROR, (data) => {
       setMessage(`Błąd: ${data.message}`);
+    });
+
+    socket.on('showMucekCards', (data) => {
+      setMucekCards(data.mucekCards);
+      setShowMucekSelection(true);
+      setMessage('Wybierz 2 karty do oddania z muczka');
+    });
+
+    socket.on('mucekReturned', (data) => {
+      setShowMucekSelection(false);
+      setMessage('Karty oddane, za chwilę zacznie się licytacja...');
+    });
+
+    socket.on('showMucekPhase', (data) => {
+      setPlayers(data.players);
+      setGameState(data.gameState);
+      setMessage('Muczek ujawniony! Licytacja się zaczyna.');
     });
 
     return () => {
@@ -188,14 +245,67 @@ const Game: React.FC = () => {
     setMessage('Dodano bota...');
   };
 
+  const handleStartGame = () => {
+    const socket = socketRef.current;
+    socket.emit(SOCKET_EVENTS.GAME_START, { gameId });
+    setMessage('Rozpoczynanie gry...');
+  };
+
   const handleFillWithBots = () => {
     const socket = socketRef.current;
-    // calculate how many bots to add
-    const needed = Math.max(0, 4 - players.length);
+    const needed = Math.max(0, 4 - ((players?.length) ?? 0));
     for (let i = 0; i < needed; i++) {
       socket.emit(SOCKET_EVENTS.ADD_BOT, { gameId, botName: `Bot${i + 1}` });
     }
     setMessage(`Dodano ${needed} bota(ów)`);
+  };
+
+  const handleReturnMucekCards = () => {
+    if (selectedMucekCards.length !== 2) {
+      setMessage('Musisz wybrać dokładnie 2 karty!');
+      return;
+    }
+    const socket = socketRef.current;
+    socket.emit(SOCKET_EVENTS.RETURN_MUCEK_CARDS, {
+      gameId,
+      cardIds: selectedMucekCards
+    });
+    setSelectedMucekCards([]);
+  };
+
+  const handleDiscardToMuck = () => {
+    if (selectedCardsTiDiscard.length !== 2) {
+      setMessage('Musisz wybrać dokładnie 2 karty do oddania do mucka!');
+      return;
+    }
+    const socket = socketRef.current;
+    socket.emit(SOCKET_EVENTS.DISCARD_TO_MUCK, {
+      gameId,
+      cardIds: selectedCardsTiDiscard
+    });
+    setSelectedCardsTiDiscard([]);
+  };
+
+  const toggleCardToDiscard = (cardId: string) => {
+    setSelectedCardsTiDiscard(prev => {
+      if (prev.includes(cardId)) {
+        return prev.filter(id => id !== cardId);
+      } else if (prev.length < 2) {
+        return [...prev, cardId];
+      }
+      return prev;
+    });
+  };
+
+  const toggleMucekCard = (cardId: string) => {
+    setSelectedMucekCards(prev => {
+      if (prev.includes(cardId)) {
+        return prev.filter(id => id !== cardId);
+      } else if (prev.length < 2) {
+        return [...prev, cardId];
+      }
+      return prev;
+    });
   };
 
   // Gra jeszcze się nie rozpoczęła
@@ -225,6 +335,9 @@ const Game: React.FC = () => {
             <button onClick={handleJoinGame} className="btn-primary" disabled={joining}>
               {joining ? 'Dołączanie...' : '🎮 Dołącz do gry'}
             </button>
+            <button onClick={handleStartGame} className="btn-primary" style={{marginLeft:8}} disabled={((players?.length) ?? 0) < 2}>
+              ▶️ Start
+            </button>
             <button onClick={() => handleAddBot('JanBot')} className="btn-secondary" style={{marginLeft:8}}>
               ➕ Dodaj bota
             </button>
@@ -233,10 +346,10 @@ const Game: React.FC = () => {
             </button>
           </div>
 
-          {players.length > 0 && (
+          {(players?.length ?? 0) > 0 && (
             <div className="players-list">
-              <h3>Gracze ({players.length}/4)</h3>
-              {players.map((p) => (
+              <h3>Gracze ({(players?.length ?? 0)}/4)</h3>
+              {(players || []).map((p) => (
                 <div key={p.id} className="player-item">
                   {p.name}
                 </div>
@@ -260,15 +373,15 @@ const Game: React.FC = () => {
     );
   }
 
-  const isMyTurn = players[currentPlayerIndex]?.id === myId;
-  const myPlayer = players.find(p => p.id === myId);
+  const isMyTurn = (currentPlayerIndex >= 0 && currentPlayerIndex < players.length) ? players[currentPlayerIndex]?.id === myId : false;
+  const myPlayer = players ? players.find(p => p.id === myId) : undefined;
 
   return (
     <div className="game-container playing">
       {/* Header */}
       <div className="game-header">
         <div className="game-info">
-          <span className="info-item">🎴 Runda {roundNumber}/9</span>
+          <span className="info-item">🎴 Runda {roundNumber}{/* total rounds hidden — game ends at 1000 pkt */}</span>
           <span className="info-item">🎯 Stan: {gameState}</span>
           {trump && <span className="info-item">Atut: {trump}</span>}
         </div>
@@ -303,7 +416,7 @@ const Game: React.FC = () => {
             <div className="player-info">
               <h3>{myPlayer.name}</h3>
               <p>Wynik: <strong>{myPlayer.score}</strong></p>
-              <p>Licytacja: <strong>{myPlayer.bid}</strong></p>
+              <p>Licytacja: <strong>{myPlayer ? (myPlayer.bid ?? 0) : 0}</strong></p>
               {isMyTurn && <div className="your-turn">📍 Twoja tura!</div>}
             </div>
           )}
@@ -321,6 +434,67 @@ const Game: React.FC = () => {
       </div>
 
       {/* Dialogs */}
+      {showCardSelection && (
+        <div className="message-overlay">
+          <div className="card-selection-dialog">
+            <h3>🎴 Wybór kart do oddania - Mucek</h3>
+            <p>Wybrales licytację! Teraz musisz oddać 2 karty do mucka.</p>
+            <div className="selection-cards">
+              {playerHand.map(card => (
+                <div
+                  key={card.id}
+                  className={`selection-card ${selectedCardsTiDiscard.includes(card.id) ? 'selected' : ''}`}
+                  onClick={() => toggleCardToDiscard(card.id)}
+                  title={`${card.rank} ${card.suit}`}
+                >
+                  <span className="card-rank">{card.rank}</span>
+                  <span className="card-suit">{card.suit}</span>
+                </div>
+              ))}
+            </div>
+            <div className="selection-info">
+              Wybrane: {selectedCardsTiDiscard.length}/2
+            </div>
+            <button
+              onClick={handleDiscardToMuck}
+              disabled={selectedCardsTiDiscard.length !== 2}
+              className="btn-primary"
+            >
+              Potwierdź - Oddaj karty
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showMucekSelection && (
+        <div className="message-overlay">
+          <div className="mucek-dialog">
+            <h3>🎴 Muczek - Wybierz 2 karty do oddania</h3>
+            <div className="mucek-cards">
+              {mucekCards.map(card => (
+                <div
+                  key={card.id}
+                  className={`mucek-card ${selectedMucekCards.includes(card.id) ? 'selected' : ''}`}
+                  onClick={() => toggleMucekCard(card.id)}
+                >
+                  {card.rank}{card.suit}
+                </div>
+              ))}
+            </div>
+            <div className="mucek-info">
+              Wybrane: {selectedMucekCards.length}/2
+            </div>
+            <button
+              onClick={handleReturnMucekCards}
+              disabled={selectedMucekCards.length !== 2}
+              className="btn-primary"
+            >
+              Zatwierdź
+            </button>
+          </div>
+        </div>
+      )}
+
       <BiddingDialog
         isOpen={showBiddingDialog}
         onBidSubmit={handlePlaceBid}

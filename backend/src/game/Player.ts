@@ -19,7 +19,7 @@ export class Player {
   score: number = 0;           // Całkowity wynik gracza
   roundScore: number = 0;      // Wynik w aktualnej rundzie
   melds: Meld[] = [];         // Meldunki tego gracza
-  bid: number = 0;             // Licytacja gracza
+  bid: number = -1;             // Licytacja gracza (-1 = nieoddana jeszcze, 0 = pas)
   isBidder: boolean = false;   // Czy gracz jest licytantem
   trump?: string;              // Kolor atutowy (jeśli gracz jest licytantem)
 
@@ -105,7 +105,7 @@ export class Player {
     this.hand = [];
     this.tricks = [];
     this.melds = [];
-    this.bid = 0;
+    this.bid = -1;
     this.isBidder = false;
     this.roundScore = 0;
   }
@@ -120,7 +120,7 @@ export class Player {
       handCount: this.hand.length,
       score: this.score,
       roundScore: this.roundScore,
-      bid: this.bid,
+      bid: this.bid < 0 ? 0 : this.bid,
       isBidder: this.isBidder,
       tricksCount: this.tricks.length,
       meldsCount: this.melds.length
